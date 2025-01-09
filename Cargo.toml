@@ -1,0 +1,11 @@
+[package]
+name = "reminderpup"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+chrono = "0.4.39"
+dotenvy = "0.15.7"
+poise = "0.6.1"
+sqlx = { version = "0.8.3", features = ["postgres", "runtime-tokio-native-tls", "chrono"] }
+tokio = { version = "1.43.0", features = ["rt", "macros", "rt-multi-thread"] }
