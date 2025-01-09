@@ -63,7 +63,7 @@ impl Scheduler {
         tokio::spawn(async move {
             loop {
                 Scheduler::check_messages(&active_messages, &message_map, &http).await;
-                sleep(Duration::from_secs(60)).await;
+                sleep(Duration::from_secs(600)).await;
             }
         });
     }
@@ -190,7 +190,7 @@ impl Scheduler {
         let now = Utc::now();
 
         for (k, v) in messages_itter.iter() {
-            if (v.datetime + chrono::Duration::minutes(1)) < now {
+            if (v.datetime + chrono::Duration::minutes(60)) < now {
                 let guild = serenity::GuildId::from(v.guild as u64);
 
                 let channel = match guild.channels(&http).await {
