@@ -64,7 +64,6 @@ pub async fn setchannel(ctx: Context<'_>) -> Result<(), Error> {
 #[poise::command(prefix_command, slash_command)]
 pub async fn adduser(
     ctx: Context<'_>,
-    #[description = "Only admins can specify other users"] user: Option<serenity::User>,
     #[description = "Praise"] praise: String,
     #[description = "Praise name"] praisename: String,
     #[description = "Timezone Hour -12 to 14 allowed"]
@@ -87,10 +86,80 @@ pub async fn adduser(
     };
     let interval = PgInterval::try_from(delta).expect("Delta can't convert to interval");
 
-    let user_id = match user {
-        Some(e) => e.id,
-        None => ctx.author().id,
+    let user_id = ctx.author().id;
+
+    let user_data = User {
+        id: 1,
+        guild_id: guild as i64,
+        user_id: user_id.get() as i64,
+        praise: praise.clone(),
+        praise_name: praisename.clone(),
+        timezone: interval,
     };
+
+    match ctx.data().db.add_user(&user_data).await {
+        Ok(_) => {
+            let response = serenity::MessageBuilder::new()
+                .push("Yay I have a new friend!!!\n")
+                .mention(&user_id)
+                .push(format!(" has been added and they are a {}", praisename))
+                .build();
+            ctx.say(response).await?;
+            return Ok(());
+        }
+        Err(e) => {
+            println!("{:?}", e);
+            match e {
+                DatabaseErrors::GuildDoesNotExist => {
+                    let response = format!("Bark Bark!!!\nI'm new here, please have an admin run /setchannel before adding people.");
+                    ctx.say(response).await?;
+                    return Ok(());
+                }
+                DatabaseErrors::UserAlreadyExists => {
+                    let response = serenity::MessageBuilder::new()
+                        .mention(&user_id)
+                        .push(" is already my friend!!\nPlease use /updateuser to update them!!")
+                        .build();
+                    ctx.say(response).await?;
+                    return Ok(());
+                }
+                _ => return Err("Server Error".into()),
+            }
+        }
+    };
+}
+
+#[poise::command(
+    prefix_command,
+    slash_command,
+    default_member_permissions = "ADMINISTRATOR"
+)]
+pub async fn adduseradmin(
+    ctx: Context<'_>,
+    #[description = "Only admins can specify other users"] user: serenity::User,
+    #[description = "Praise"] praise: String,
+    #[description = "Praise name"] praisename: String,
+    #[description = "Timezone Hour -12 to 14 allowed"]
+    #[min = -12_i8]
+    #[max = 14_i8]
+    timezonehour: i8,
+    #[description = "Timezone minuets 0 to 59 allowed"]
+    #[min = 0_u8]
+    #[max = 59_u8]
+    timezoneminutes: i8,
+) -> Result<(), Error> {
+    let guild = ctx.guild().expect("not buing used in guild").id.get();
+
+    let delta = match timezonehour >= 0_i8 {
+        true => TimeDelta::minutes(timezoneminutes as i64) + TimeDelta::hours(timezonehour as i64),
+        false => {
+            TimeDelta::minutes((timezoneminutes - (timezoneminutes * 2)) as i64)
+                + TimeDelta::hours(timezonehour as i64)
+        }
+    };
+    let interval = PgInterval::try_from(delta).expect("Delta can't convert to interval");
+
+    let user_id = user.id;
 
     let user_data = User {
         id: 1,
