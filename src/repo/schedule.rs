@@ -63,7 +63,7 @@ impl Scheduler {
         tokio::spawn(async move {
             loop {
                 Scheduler::check_messages(&active_messages, &message_map, &http).await;
-                sleep(Duration::from_secs(600)).await;
+                sleep(Duration::from_secs(60)).await;
             }
         });
     }
@@ -84,34 +84,21 @@ impl Scheduler {
         };
 
         for schedule in schedules {
-            let guild_data = match db.get_guild(&schedule.guild_id).await {
-                Ok(e) => match e {
-                    Some(g) => g,
-                    None => {
-                        println!("Cannot find guild information for {}", schedule.guild_id);
-                        continue;
-                    }
-                },
-                Err(_) => {
-                    println!("Cannot fetch guild data due to database error");
-                    return;
-                }
-            };
-            let guild = serenity::GuildId::from(schedule.guild_id.clone() as u64);
+            let guild = serenity::GuildId::from(schedule.guild_id as u64);
 
             let channel = match guild.channels(&http).await {
-                Ok(e) => match e.get(&serenity::ChannelId::from(guild_data.channel as u64)) {
+                Ok(e) => match e.get(&serenity::ChannelId::from(schedule.channel_id as u64)) {
                     Some(c) => c.clone(),
                     None => {
                         println!(
                             "Cannot find channel {} in guild {}",
-                            guild_data.channel, guild_data.id
+                            schedule.channel_id, schedule.guild_id
                         );
                         continue;
                     }
                 },
                 Err(_) => {
-                    println!("Cannot fetch channels from guild {}", guild_data.id);
+                    println!("Cannot fetch channels from guild {}", schedule.guild_id);
                     continue;
                 }
             };
@@ -151,8 +138,8 @@ impl Scheduler {
                         Message {
                             message: message_id,
                             datetime: Utc::now(),
-                            guild: guild_data.id.clone(),
-                            channel: guild_data.channel.clone(),
+                            guild: schedule.guild_id.clone(),
+                            channel: schedule.channel_id.clone(),
                             schedule: schedule.clone(),
                         },
                     );
@@ -168,7 +155,7 @@ impl Scheduler {
                 Err(e) => {
                     println!(
                         "Cannot send message to channel {} in guild {}",
-                        guild_data.channel, guild_data.id
+                        schedule.channel_id, schedule.guild_id
                     );
                     println!("{:?}", e);
                     continue;
@@ -282,8 +269,21 @@ pub async fn event_handler(
         "Got an event in event handler: {:?}",
         event.snake_case_name()
     );
+
     match event {
         serenity::FullEvent::ReactionAdd { add_reaction } => {
+            if add_reaction.message_author_id.unwrap()
+                != ctx
+                    .http
+                    .get_current_application_info()
+                    .await
+                    .expect("Can't get current appilacion info")
+                    .id
+                    .get()
+            {
+                return Ok(());
+            }
+
             let mut messages = data.active_messages.lock().await;
 
             let m = messages.get(&add_reaction.message_id.get());

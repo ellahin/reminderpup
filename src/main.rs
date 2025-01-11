@@ -2,6 +2,7 @@
 
 mod commands;
 mod repo;
+mod util;
 use dotenvy::dotenv;
 
 use poise::serenity_prelude as serenity;
@@ -63,7 +64,19 @@ async fn main() {
         Arc::new(tokio::sync::Mutex::new(HashMap::new()));
 
     let options = poise::FrameworkOptions {
-        commands: vec![commands::setchannel()],
+        commands: vec![
+            commands::setchannel(),
+            commands::adduser(),
+            commands::deleteuser(),
+            commands::updateuser(),
+            commands::addschedule(),
+            commands::addscheduleadmin(),
+            commands::getscheduleall(),
+            commands::getschedule(),
+            commands::getscheduleadmin(),
+            commands::deleteschedule(),
+            commands::deletescheduleadmin(),
+        ],
         prefix_options: poise::PrefixFrameworkOptions {
             prefix: Some("~".into()),
             edit_tracker: Some(Arc::new(poise::EditTracker::for_timespan(
