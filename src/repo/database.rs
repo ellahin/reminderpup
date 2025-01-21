@@ -89,17 +89,13 @@ pub struct Database {
 
 impl Database {
     pub async fn new(database_url: String) -> Result<Database, DatabaseErrors> {
-        let migration_path = Path::new("./migrations");
 
         let sql_pool = match PgPool::connect(&database_url).await {
             Ok(e) => e,
             Err(_) => return Err(DatabaseErrors::CannotConect),
         };
 
-        let migrator = match Migrator::new(migration_path).await {
-            Ok(e) => e,
-            Err(_) => return Err(DatabaseErrors::MigrationFolderDoesNotExist),
-        };
+        let migrator = sqlx::migrate!();
 
         match migrator.run(&sql_pool).await {
             Ok(_) => return Ok(Database { db: sql_pool }),
