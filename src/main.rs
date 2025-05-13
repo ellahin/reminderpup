@@ -76,6 +76,7 @@ async fn main() {
             commands::getscheduleadmin(),
             commands::deleteschedule(),
             commands::deletescheduleadmin(),
+            commands::shiftschedule(),
         ],
         prefix_options: poise::PrefixFrameworkOptions {
             prefix: Some("~".into()),

@@ -203,6 +203,72 @@ pub async fn adduseradmin(
 }
 
 #[poise::command(prefix_command, slash_command)]
+pub async fn shiftschedule(
+    ctx: Context<'_>,
+    #[description = "hours to shift by -24 to 24 allowed"]
+    #[min = -24_i8]
+    #[max = 24_i8]
+    hour: i8,
+    #[description = "Timezone minuets -59 to 59 allowed"]
+    #[min = 0_u8]
+    #[max = 59_u8]
+    minutes: i8,
+) -> Result<(), Error> {
+    let guild = ctx.guild().expect("not buing used in guild").id.get();
+    let user_id = ctx.author().id;
+
+    match ctx
+        .data()
+        .db
+        .get_user_guild(&(guild as i64), &(user_id.get() as i64))
+        .await
+    {
+        Ok(_) => {}
+        Err(e) => match e {
+            DatabaseErrors::GuildDoesNotExist => {
+                let response = format!("Bark Bark!!!\nI'm new here, please have an admin run /setchannel before adding people.");
+                ctx.say(response).await?;
+                return Ok(());
+            }
+            DatabaseErrors::UserDoesNotExist => {
+                let response = serenity::MessageBuilder::new()
+                    .mention(&user_id)
+                    .push(" is not my friend yet\nPlease use /adduser to make them my friend!!")
+                    .build();
+                ctx.say(response).await?;
+                return Ok(());
+            }
+            _ => return Err("Server Error".into()),
+        },
+    };
+
+    let delta = match hour >= -1_i8 {
+        true => TimeDelta::minutes(minutes as i64) + TimeDelta::hours(hour as i64),
+        false => {
+            TimeDelta::minutes((minutes - (minutes * 2)) as i64) + TimeDelta::hours(hour as i64)
+        }
+    };
+
+    let interval: PgInterval =
+        PgInterval::try_from(delta).expect("Delta can't convert to interval");
+
+    match ctx
+        .data()
+        .db
+        .shift_schedules(&(guild as i64), &(user_id.get() as i64), &interval)
+        .await
+    {
+        Ok(_) => {
+            let response = serenity::MessageBuilder::new()
+                .push("Schedules have been update!!\n")
+                .build();
+            ctx.say(response).await?;
+            return Ok(());
+        }
+        Err(e) => return Err("Server Err".into()),
+    };
+}
+#[poise::command(prefix_command, slash_command)]
 pub async fn updateuser(
     ctx: Context<'_>,
     #[description = "Only admins can specify other users"] user: Option<serenity::User>,

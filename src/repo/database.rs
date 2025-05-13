@@ -377,6 +377,30 @@ impl Database {
             None => return Ok(()),
         };
     }
+    
+    /// Shifts all schedules for a user by an interval
+    pub async fn shift_schedules(&self, guild_id: &i64, user_id: &i64, interval: &PgInterval) -> Result<(), DatabaseErrors> {
+        let uid = match self.get_user_guild(guild_id, user_id).await {
+            Ok(o) => match o {
+                Some(e) => e,
+                None => return Ok(())
+            },
+            Err(_) => return Err(DatabaseErrors::Error),
+
+        };
+
+        println!("Running query");
+        match sqlx::query!(
+                "UPDATE schedule SET nextrun = (nextrun + $3) WHERE userid= $1 and guildid = $2", uid.id, guild_id, interval,
+            )
+            .execute(&self.db)
+            .await
+            {
+                Ok(_) => return Ok(()),
+                Err(_) => return Err(DatabaseErrors::Error),
+            };
+        
+        }
 
     pub async fn get_user_id(&self, id: &i64) -> Result<Option<User>, DatabaseErrors> {
         let opt = match sqlx::query!("SELECT * FROM users where id = $1", id)
